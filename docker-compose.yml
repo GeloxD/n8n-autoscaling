@@ -34,6 +34,17 @@ services:
       - n8n-network
       #- shark
 
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - ${DATA_FOLDER}/caddy_config:/config
+      - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+
   n8n:
     build:
       context: .
@@ -44,9 +55,15 @@ services:
       - "5678:5678"
       - "5679:5679"  
     environment:
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
       - N8N_DIAGNOSTICS_ENABLED=${N8N_DIAGNOSTICS_ENABLED}
       - N8N_USER_FOLDER=${N8N_USER_FOLDER}
       - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
       - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}  # You need to create your own encryption key
@@ -70,6 +87,7 @@ services:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
     volumes:
       - n8n_main:/n8n
+      - ${DATA_FOLDER}/local_files:/files
     depends_on:
       postgres:
         condition: service_healthy
@@ -238,6 +256,9 @@ volumes:
   redis_data:
   n8n_main:
   n8n_webhook:
+  caddy_data:
+    external: true
+    
 
 networks:
   n8n-network:
