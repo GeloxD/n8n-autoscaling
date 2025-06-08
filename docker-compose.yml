@@ -257,6 +257,7 @@ volumes:
   redis_data:
   n8n_main:
   n8n_webhook:
+  caddy_config:
   caddy_data:
     external: true
     
