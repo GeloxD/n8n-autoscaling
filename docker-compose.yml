@@ -3,13 +3,11 @@ volumes:
   redis_data:
   n8n_main:
   n8n_webhook:
-  traefik_data:
+  caddy_data:
 
 networks:
   n8n-network:
     driver: bridge
-  shark:
-    external: true
 
 x-n8n: &service-n8n
   build:
@@ -19,10 +17,10 @@ x-n8n: &service-n8n
   restart: unless-stopped
   networks:
     - n8n-network
-    - shark
   environment:
     - N8N_DIAGNOSTICS_ENABLED=${N8N_DIAGNOSTICS_ENABLED}
     - N8N_USER_FOLDER=${N8N_USER_FOLDER}
+    - N8N_CUSTOM_EXTENSIONS=${N8N_USER_FOLDER}
     - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE}
     - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS}
     - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY} # You need to create your own encryption key
@@ -32,6 +30,8 @@ x-n8n: &service-n8n
     - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
     - WEBHOOK_URL=${WEBHOOK_URL}
     - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
+    - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+    - NODE_ENV=production
     # Queue mode config
     - EXECUTIONS_MODE=${EXECUTIONS_MODE}
     - QUEUE_BULL_REDIS_HOST=${QUEUE_BULL_REDIS_HOST}
@@ -54,38 +54,11 @@ x-n8n: &service-n8n
     - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    networks:
-      - n8n-network
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-
-  traefik:
-    image: traefik:v2.10
-    restart: unless-stopped
-    networks:
-      - n8n-network
-    command:
-      - "--api=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.n8n_ui.address=:8082"
-      - "--entrypoints.n8n_webhooks.address=:8083"
-    ports:
-      - "8082:8082"
-      - "8083:8083"
-    volumes:
-      - traefik_data:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-#    ports:
-#      - 6379:6379
+    ports:
+      - 6379:6379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 1s
@@ -99,7 +72,7 @@ services:
     image: postgres:17
     restart: unless-stopped
     ports:
-      - "${TAILSCALE_IP}:5432:5432" # Bind to Tailscale IP if set, otherwise all interfaces
+      - 5432:5432
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -117,8 +90,20 @@ services:
       retries: 10
     networks:
       - n8n-network
-      - shark
-
+      
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - ${DATA_FOLDER}/caddy_config:/config
+      - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - n8n-network
+      
   n8n:
     <<: *service-n8n
     ports:
@@ -133,20 +118,12 @@ services:
         condition: service_healthy
     networks:
       - n8n-network
-      - shark
     healthcheck:
       test: ["CMD", "node", "-v"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 60s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.n8n-ui.rule=Host(`${N8N_HOST}`)"
-      - "traefik.http.routers.n8n-ui.entrypoints=n8n_ui"
-      - "traefik.http.routers.n8n-webhooks.rule=Host(`${N8N_WEBHOOK}`)"
-      - "traefik.http.routers.n8n-webhooks.entrypoints=n8n_webhooks"
-      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
   n8n-webhook:
     <<: *service-n8n
@@ -178,7 +155,6 @@ services:
         condition: service_healthy
     networks:
       - n8n-network
-      - shark
     healthcheck:
       test: ["CMD", "node", "-v"]
       interval: 5s
