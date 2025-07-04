@@ -5,7 +5,7 @@ automate.growthportsolutions.com {
 }
 
 evo.growthportsolutions.com {
-    reverse_proxy evolution_api:8080{
+    reverse_proxy evolution_api:8080 {
       flush_interval -1
     }
 }
