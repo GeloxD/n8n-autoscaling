@@ -1,5 +1,11 @@
-n8n.growthportsolutions.com {
+automate.growthportsolutions.com {
     reverse_proxy n8n:5678 {
+      flush_interval -1
+    }
+}
+
+evo.growthportsolutions.com {
+    reverse_proxy evolution_api:8080{
       flush_interval -1
     }
 }
