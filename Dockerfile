@@ -1,60 +1,19 @@
-FROM node:20
-#need platform flag before n20 if building on arm
-
-# Install dependencies for Puppeteer
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libpango-1.0-0 \
-    libgbm1 \
-    libnss3 \
-    libxshmfence1 \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libgtk-3-0 \
-    wget \
-    xdg-utils \
-    lsb-release \
-    fonts-noto-color-emoji \
-    ffmpeg \
-    git \
-    openssh-client \
-    graphicsmagick \
-    tini \
-    tzdata \
-    jq \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Chromium browser
-RUN apt-get update && apt-get install -y chromium && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install n8n and Puppeteer
-RUN npm install -g n8n puppeteer
-# Add npm global bin to PATH to ensure n8n executable is found
-ENV PATH="/usr/local/lib/node_modules/n8n/bin:$PATH"
-
-# Set environment variables
-ENV N8N_LOG_LEVEL=info
-ENV NODE_FUNCTION_ALLOW_EXTERNAL=ajv,ajv-formats,puppeteer,ffmpeg,git,graphicsmagick,openssh-client
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Expose the n8n port
-EXPOSE 5678
-
-# Create proper entrypoint scripts with shebang
-RUN printf '#!/bin/sh\nexec n8n worker\n' > /worker && \
-    printf '#!/bin/sh\nexec n8n webhook\n' > /webhook && \
-    chmod +x /worker /webhook
-
-# Start n8n (default command)
-CMD ["n8n", "start"]
+# Multi-stage build to add tools to n8n image
+ARG N8N_VERSION=2.36.8
+FROM alpine:3.23 AS builder
+RUN apk add --no-cache ffmpeg git openssh-client graphicsmagick jq curl
+FROM n8nio/n8n:${N8N_VERSION}
+USER root
+COPY --from=builder /usr/bin/ffmpeg /usr/bin/ffmpeg
+COPY --from=builder /usr/bin/ffprobe /usr/bin/ffprobe
+COPY --from=builder /usr/bin/git /usr/bin/git
+COPY --from=builder /usr/bin/gm /usr/bin/gm
+COPY --from=builder /usr/bin/jq /usr/bin/jq
+COPY --from=builder /usr/bin/curl /usr/bin/curl
+COPY --from=builder /usr/lib/libav*.so* /usr/lib/
+COPY --from=builder /usr/lib/libsw*.so* /usr/lib/
+COPY --from=builder /usr/lib/libcurl*.so* /usr/lib/
+COPY --from=builder /usr/lib/libjq*.so* /usr/lib/
+COPY --from=builder /usr/lib/libonig*.so* /usr/lib/
+EXPOSE 5678 5679
+USER node
