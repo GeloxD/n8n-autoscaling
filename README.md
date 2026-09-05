@@ -64,8 +64,7 @@ backup system from upstream. Happy to add any of these later if useful.
    docker compose build --no-cache
    docker compose up -d
    ```
-8. Check logs, confirm workers pick up jobs and a Code node with Puppeteer
-   still runs:
+8. Check logs, confirm workers pick up jobs:
    ```bash
    docker compose logs -f n8n n8n-worker n8n-autoscaler
    ```
@@ -118,10 +117,13 @@ single-VPS personal/small-business setup, internal mode is fine - if you
 later want the sidecar model, let me know and I can wire it up (it needs
 the autoscaler to scale worker + runner pairs together).
 
-## Adding Puppeteer / System Packages
+## Adding System Packages
 
 The base image is now Alpine (`n8nio/n8n`), not Debian, so packages are
-added via `apk` in the `Dockerfile`, not `apt`. To add more:
+added via `apk` in the `Dockerfile`, not `apt`. Chromium/Puppeteer aren't
+installed - if you ever need browser automation in a Code node later, add
+`chromium` via `apk` and `puppeteer-core` via npm, plus
+`PUPPETEER_EXECUTABLE_PATH`. To add other packages:
 
 ```dockerfile
 RUN apk add --no-cache your-package-here

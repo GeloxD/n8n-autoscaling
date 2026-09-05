@@ -12,35 +12,15 @@ FROM docker.n8n.io/n8nio/n8n:${N8N_VERSION}
 # so package names/paths differ from your previous Dockerfile.
 USER root
 
-# Puppeteer + the same system utilities your old image had
-# (ffmpeg, git, graphicsmagick, openssh-client) via apk instead of apt.
+# System utilities your old image had (ffmpeg, git, graphicsmagick,
+# openssh-client) via apk instead of apt. No Chromium/Puppeteer - not used.
 RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    ttf-liberation \
-    font-noto-emoji \
-    udev \
     ffmpeg \
     git \
     graphicsmagick \
     openssh-client
 
-# Skip puppeteer's own Chromium download (musl/Alpine-incompatible anyway)
-# and point it at the system chromium package instead. Path is different
-# from Debian's /usr/bin/chromium - Alpine's package installs it as
-# chromium-browser.
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
-    NODE_FUNCTION_ALLOW_EXTERNAL=ajv,ajv-formats,puppeteer,ffmpeg,git,graphicsmagick,openssh-client
-
-# Keep using the plain `puppeteer` package (not puppeteer-core) so any
-# existing workflows using `require('puppeteer')` keep working unchanged.
-RUN npm install -g puppeteer
+ENV NODE_FUNCTION_ALLOW_EXTERNAL=ajv,ajv-formats,ffmpeg,git,graphicsmagick,openssh-client
 
 # docker-compose.yml explicitly runs these containers as root (user: root:root)
 # to match your existing setup and avoid a volume-permission migration on

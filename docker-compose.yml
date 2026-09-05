@@ -80,8 +80,7 @@ x-n8n: &service-n8n
     # wiring, which was for the pre-2.0 architecture and no longer applies.
     - N8N_RUNNERS_ENABLED=true
     - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=${OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS}
-    - NODE_FUNCTION_ALLOW_EXTERNAL=ajv,ajv-formats,puppeteer
-    - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    - NODE_FUNCTION_ALLOW_EXTERNAL=ajv,ajv-formats,ffmpeg,git,graphicsmagick,openssh-client
 
 services:
   redis:
